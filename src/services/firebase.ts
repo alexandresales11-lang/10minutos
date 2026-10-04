@@ -7,6 +7,8 @@ import {
   getRedirectResult,
   signOut, 
   onAuthStateChanged, 
+  signInWithEmailAndPassword,
+  createUserWithEmailAndPassword,
   User 
 } from 'firebase/auth';
 import { 
@@ -91,6 +93,25 @@ export const FirebaseService = {
         console.error('Login error:', redirectErr);
         throw redirectErr;
       }
+    }
+  },
+
+  // Email / Password Login (Works globally on any domain with zero restriction)
+  async loginWithEmail(email: string, pass: string): Promise<User> {
+    try {
+      const res = await signInWithEmailAndPassword(auth, email.trim(), pass);
+      return res.user;
+    } catch (err: any) {
+      if (err.code === 'auth/user-not-found' || err.code === 'auth/invalid-credential' || err.code === 'auth/invalid-login-credentials') {
+        // Try creating account on first try
+        try {
+          const createRes = await createUserWithEmailAndPassword(auth, email.trim(), pass);
+          return createRes.user;
+        } catch (createErr: any) {
+          throw createErr;
+        }
+      }
+      throw err;
     }
   },
 

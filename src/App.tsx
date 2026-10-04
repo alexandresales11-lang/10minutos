@@ -406,6 +406,8 @@ export default function App() {
             settings={settings}
             currentStreak={currentStreak}
             maxStreak={maxStreak}
+            currentUser={currentUser}
+            onOpenAuthModal={() => setIsAuthModalOpen(true)}
             onStartTask={handleStartTask}
             onOpenSessionPlanner={() => setIsSessionPlannerOpen(true)}
             onNavigateToTasks={() => setActiveTab('tasks')}

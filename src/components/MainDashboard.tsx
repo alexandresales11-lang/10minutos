@@ -1,6 +1,6 @@
 import React from 'react';
 import { Task, ExecutionLog, UserSettings } from '../types';
-import { Play, Flame, Clock, CheckCircle2, ChevronRight, Award, Target, AlertCircle, ArrowUpRight, Sparkles } from 'lucide-react';
+import { Play, Flame, Clock, CheckCircle2, ChevronRight, Award, Target, AlertCircle, ArrowUpRight, Sparkles, Cloud } from 'lucide-react';
 import { CATEGORY_DETAILS } from '../data/initialTasks';
 
 interface MainDashboardProps {
@@ -10,6 +10,8 @@ interface MainDashboardProps {
   settings: UserSettings;
   currentStreak: number;
   maxStreak: number;
+  currentUser?: any;
+  onOpenAuthModal?: () => void;
   onStartTask: (task: Task) => void;
   onOpenSessionPlanner: () => void;
   onNavigateToTasks: () => void;
@@ -24,6 +26,8 @@ export const MainDashboard: React.FC<MainDashboardProps> = ({
   settings,
   currentStreak,
   maxStreak,
+  currentUser,
+  onOpenAuthModal,
   onStartTask,
   onOpenSessionPlanner,
   onNavigateToTasks,
@@ -68,6 +72,31 @@ export const MainDashboard: React.FC<MainDashboardProps> = ({
 
   return (
     <div className="space-y-6 max-w-4xl mx-auto pb-12">
+      {/* Cloud Sync Reminder Banner if not signed in */}
+      {!currentUser && onOpenAuthModal && (
+        <div className="bg-emerald-950/20 border border-emerald-500/30 p-4 rounded-2xl flex flex-col sm:flex-row items-center justify-between gap-3">
+          <div className="flex items-center space-x-3">
+            <div className="w-8 h-8 rounded-xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center shrink-0">
+              <Cloud className="w-4 h-4 text-emerald-400" />
+            </div>
+            <div>
+              <div className="text-xs font-bold text-white font-mono-numeric">
+                SINCRONIZAÇÃO EM NUVEM (CELULAR & PC)
+              </div>
+              <p className="text-xs text-zinc-400">
+                Conecte sua conta para que os blocos executados no celular apareçam instantaneamente no computador.
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={onOpenAuthModal}
+            className="w-full sm:w-auto px-4 py-2 bg-emerald-500 hover:bg-emerald-400 text-black font-extrabold text-xs rounded-xl transition shadow-md shadow-emerald-500/20 whitespace-nowrap"
+          >
+            CONECTAR CONTA
+          </button>
+        </div>
+      )}
+
       {/* Top Main Hero: DIA XX & Hoje */}
       <div className="bg-gradient-to-b from-zinc-900 to-[#121215] border border-zinc-800 rounded-3xl p-6 sm:p-8">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-6 border-b border-zinc-800/80 gap-3">
