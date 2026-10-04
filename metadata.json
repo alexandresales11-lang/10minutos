@@ -1,0 +1,6 @@
+{
+  "name": "10 MINUTOS",
+  "description": "Sistema de disciplina, execução em blocos de 10 minutos, consistência e evolução pessoal.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

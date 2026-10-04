@@ -1,0 +1,104 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "User profile and personal preferences",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "description": "The user's auth UID" },
+        "email": { "type": "string", "description": "The user's email address" },
+        "displayName": { "type": "string", "description": "Display name" },
+        "photoURL": { "type": "string", "description": "User photo URL" },
+        "createdAt": { "type": "string", "description": "ISO timestamp" },
+        "updatedAt": { "type": "string", "description": "ISO timestamp" }
+      },
+      "required": ["uid", "createdAt"]
+    },
+    "UserTask": {
+      "title": "UserTask",
+      "description": "User's customized or default 10-minute block tasks",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Task identifier" },
+        "userId": { "type": "string", "description": "Owner user UID" },
+        "order": { "type": "number", "description": "Display order 0-24" },
+        "name": { "type": "string", "description": "Task name" },
+        "description": { "type": "string", "description": "Optional instructions" },
+        "category": { "type": "string", "description": "Task category" },
+        "defaultDurationMinutes": { "type": "number", "description": "Duration in minutes" },
+        "priority": { "type": "string", "description": "Priority level" },
+        "isEssential": { "type": "boolean", "description": "Essential block flag" },
+        "requiresEvidence": { "type": "boolean", "description": "Requires evidence flag" },
+        "evidenceTypePrompt": { "type": "string", "description": "Suggested evidence type" },
+        "metricUnit": { "type": "string", "description": "Unit for metric evidence" },
+        "isOriginalUncertain": { "type": "boolean", "description": "Flag for unconfirmed handwriting" },
+        "createdAt": { "type": "string", "description": "ISO timestamp" },
+        "updatedAt": { "type": "string", "description": "ISO timestamp" }
+      },
+      "required": ["id", "userId", "name", "category", "defaultDurationMinutes", "createdAt"]
+    },
+    "ExecutionLog": {
+      "title": "ExecutionLog",
+      "description": "Completed 10-minute block execution record",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Log identifier" },
+        "userId": { "type": "string", "description": "Owner user UID" },
+        "taskId": { "type": "string", "description": "Related task ID" },
+        "taskName": { "type": "string", "description": "Snapshot of task name" },
+        "category": { "type": "string", "description": "Task category" },
+        "date": { "type": "string", "description": "Date YYYY-MM-DD" },
+        "startTime": { "type": "string", "description": "Start ISO timestamp" },
+        "endTime": { "type": "string", "description": "End ISO timestamp" },
+        "durationMinutes": { "type": "number", "description": "Duration in minutes" },
+        "completed": { "type": "boolean", "description": "Completion flag" },
+        "daySequenceNumber": { "type": "number", "description": "Block number of the day" },
+        "globalSequenceNumber": { "type": "number", "description": "Cumulative block count" },
+        "notes": { "type": "string", "description": "Optional notes" }
+      },
+      "required": ["id", "userId", "taskId", "taskName", "category", "date", "startTime", "endTime", "durationMinutes", "completed"]
+    },
+    "EvidenceItem": {
+      "title": "EvidenceItem",
+      "description": "Proof of execution (audio, photo, video, metric, note)",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Evidence identifier" },
+        "userId": { "type": "string", "description": "Owner user UID" },
+        "taskId": { "type": "string", "description": "Associated task ID" },
+        "taskName": { "type": "string", "description": "Task name" },
+        "category": { "type": "string", "description": "Task category" },
+        "date": { "type": "string", "description": "Date YYYY-MM-DD" },
+        "dayNumber": { "type": "number", "description": "Day count since starting" },
+        "milestone": { "type": "number", "description": "Milestone day (1, 7, 30, 90, 180, 365)" },
+        "type": { "type": "string", "description": "photo, audio, video, metric, observation" },
+        "metricValue": { "type": "number", "description": "Numerical measurement" },
+        "metricUnit": { "type": "string", "description": "Measurement unit" },
+        "mediaDataUrl": { "type": "string", "description": "Base64 media data or storage URL" },
+        "mediaName": { "type": "string", "description": "File name" },
+        "observation": { "type": "string", "description": "User observation text" },
+        "drivePath": { "type": "string", "description": "Path in Google Drive structure" },
+        "createdAt": { "type": "string", "description": "ISO timestamp" }
+      },
+      "required": ["id", "userId", "taskId", "taskName", "category", "date", "type", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "UserProfile" },
+      "description": "Stores user profile and personal configuration"
+    },
+    "/users/{userId}/tasks/{taskId}": {
+      "schema": { "$ref": "UserTask" },
+      "description": "Stores the user's tasks list and custom durations"
+    },
+    "/users/{userId}/logs/{logId}": {
+      "schema": { "$ref": "ExecutionLog" },
+      "description": "Stores individual completed 10-minute block execution logs"
+    },
+    "/users/{userId}/evidence/{evidenceId}": {
+      "schema": { "$ref": "EvidenceItem" },
+      "description": "Stores proofs of execution and comparisons"
+    }
+  }
+}
