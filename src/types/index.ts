@@ -72,9 +72,13 @@ export interface UserSettings {
   soundEnabled: boolean;
   vibrationEnabled: boolean;
   antiDistractionStrictMode: boolean;
-  blocksRequiredForFreeTime: number; // e.g. 3 blocks = 5 free min
-  freeMinutesPerBatch: number; // e.g. 5 minutes
+  blocksRequiredForFreeTime: number; // e.g. 3 blocks = 15 free min
+  freeMinutesPerBatch: number; // e.g. 15 minutes
   accumulatedFreeMinutes: number;
+  rewardApps?: string[]; // e.g. ['Instagram', 'TikTok', 'WhatsApp', 'YouTube', 'Jogos']
+  usedTicketsCountToday?: number;
+  lastTicketsDate?: string; // YYYY-MM-DD
+  unlockedAllDayOnceTargetMet?: boolean;
   googleDriveConfig: {
     enabled: boolean;
     connected: boolean;

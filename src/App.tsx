@@ -16,6 +16,8 @@ import { SessionPlannerModal } from './components/SessionPlannerModal';
 import { DriveArchitectureModal } from './components/DriveArchitectureModal';
 import { FutureModulesModal } from './components/FutureModulesModal';
 import { AuthSyncModal } from './components/AuthSyncModal';
+import { LeisureTicketModal } from './components/LeisureTicketModal';
+import { SoundService } from './services/sound';
 import { 
   Zap, 
   ListTodo, 
@@ -30,7 +32,9 @@ import {
   CheckCircle2,
   RefreshCw,
   Cloud,
-  User as UserIcon
+  User as UserIcon,
+  Ticket,
+  X
 } from 'lucide-react';
 import { DEFAULT_USER_SETTINGS, INITIAL_TASKS } from './data/initialTasks';
 
@@ -47,6 +51,11 @@ export default function App() {
   // Firebase Auth & Cloud Sync
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState<boolean>(false);
+
+  // Leisure Ticket Modal & Celebration State
+  const [isLeisureModalOpen, setIsLeisureModalOpen] = useState<boolean>(false);
+  const [leisureModalTab, setLeisureModalTab] = useState<'tickets' | 'settings'>('tickets');
+  const [ticketCelebration, setTicketCelebration] = useState<{ show: boolean; ticketsAvailable: number } | null>(null);
 
   // Execution flow state
   const [activeTask, setActiveTask] = useState<Task | null>(null);
@@ -166,6 +175,14 @@ export default function App() {
   const todayLogs = logs.filter((l) => l.date === todayStr);
   const todayCompletedTaskIds = new Set(todayLogs.map((l) => l.taskId));
 
+  // Leisure Ticket calculations for today
+  const blocksReq = settings.blocksRequiredForFreeTime || 3;
+  const totalEarnedTicketsToday = Math.floor(todayLogs.length / blocksReq);
+  const usedTicketsToday = settings.usedTicketsCountToday || 0;
+  const availableTicketsToday = Math.max(0, totalEarnedTicketsToday - usedTicketsToday);
+  const isGoalReached = todayLogs.length >= (settings.idealDailyGoalBlocks || 24);
+  const isAllDayFree = (settings.unlockedAllDayOnceTargetMet ?? true) && isGoalReached;
+
   // Compute Streak
   const computeStreaks = () => {
     const datesWithLogs = new Set(logs.map((l) => l.date));
@@ -276,6 +293,28 @@ export default function App() {
       setSessionQueue(remaining);
       setActiveTask(next);
     }
+
+    // Check if new 15-minute Leisure Ticket was unlocked!
+    const newTodayLogsCount = updatedLogs.filter((l) => l.date === todayStr).length;
+    const blocksReq = settings.blocksRequiredForFreeTime || 3;
+    if (newTodayLogsCount % blocksReq === 0) {
+      SoundService.playTicketEarned();
+      const minutesPerTicket = settings.freeMinutesPerBatch || 15;
+      const updatedAccumulated = (settings.accumulatedFreeMinutes || 0) + minutesPerTicket;
+      const updatedSettings: UserSettings = {
+        ...settings,
+        accumulatedFreeMinutes: updatedAccumulated,
+      };
+      await StorageService.saveSettings(updatedSettings);
+      setSettings(updatedSettings);
+
+      const totalEarned = Math.floor(newTodayLogsCount / blocksReq);
+      const usedToday = updatedSettings.usedTicketsCountToday || 0;
+      setTicketCelebration({
+        show: true,
+        ticketsAvailable: Math.max(0, totalEarned - usedToday),
+      });
+    }
   };
 
   const handleSaveEvidence = async (newEvidenceData: Omit<EvidenceItem, 'id' | 'createdAt'>) => {
@@ -349,8 +388,26 @@ export default function App() {
           </div>
         </div>
 
-        {/* Quick Utilities: Cloud Sync, Drive, Future Modules, & Zerar */}
+        {/* Quick Utilities: Leisure Tickets, Cloud Sync, Drive, Future Modules, & Zerar */}
         <div className="flex items-center space-x-2">
+          {/* Leisure Tickets Button */}
+          <button
+            onClick={() => {
+              setLeisureModalTab('tickets');
+              setIsLeisureModalOpen(true);
+            }}
+            className="flex items-center space-x-1.5 px-3 py-1.5 rounded-xl text-xs font-bold font-mono-numeric bg-amber-950/40 text-amber-300 border border-amber-500/40 hover:bg-amber-950/60 transition shadow-sm active:scale-95"
+            title="Tickets de Lazer (15 Minutos a cada 3 blocos)"
+          >
+            <Ticket className="w-3.5 h-3.5 text-amber-400" />
+            <span className="hidden sm:inline">
+              {isAllDayFree ? 'Lazer Livre' : `${availableTicketsToday} ${availableTicketsToday === 1 ? 'Ticket' : 'Tickets'}`}
+            </span>
+            <span className="sm:hidden font-mono-numeric">
+              {isAllDayFree ? 'Livre' : `${availableTicketsToday}T`}
+            </span>
+          </button>
+
           {/* Cloud Sync Status Button */}
           <button
             onClick={() => setIsAuthModalOpen(true)}
@@ -408,6 +465,10 @@ export default function App() {
             maxStreak={maxStreak}
             currentUser={currentUser}
             onOpenAuthModal={() => setIsAuthModalOpen(true)}
+            onOpenLeisureTickets={(tab) => {
+              setLeisureModalTab(tab || 'tickets');
+              setIsLeisureModalOpen(true);
+            }}
             onStartTask={handleStartTask}
             onOpenSessionPlanner={() => setIsSessionPlannerOpen(true)}
             onNavigateToTasks={() => setActiveTab('tasks')}
@@ -542,6 +603,56 @@ export default function App() {
           currentUser={currentUser}
           onClose={() => setIsAuthModalOpen(false)}
         />
+      )}
+
+      {/* Leisure Ticket Modal */}
+      {isLeisureModalOpen && (
+        <LeisureTicketModal
+          settings={settings}
+          todayLogs={todayLogs}
+          onSaveSettings={handleSaveSettings}
+          onClose={() => setIsLeisureModalOpen(false)}
+          initialTab={leisureModalTab}
+        />
+      )}
+
+      {/* Ticket Earned Celebration Toast Notification */}
+      {ticketCelebration?.show && (
+        <div className="fixed top-20 left-1/2 -translate-x-1/2 z-50 max-w-md w-full px-4 animate-in slide-in-from-top duration-300">
+          <div className="bg-gradient-to-r from-amber-500 via-amber-400 to-yellow-400 text-black p-4 rounded-2xl shadow-2xl flex items-center justify-between border-2 border-amber-300">
+            <div className="flex items-center space-x-3">
+              <div className="w-10 h-10 rounded-xl bg-black/10 flex items-center justify-center font-black text-xl shrink-0">
+                🎫
+              </div>
+              <div>
+                <div className="text-xs font-black uppercase tracking-wider">
+                  NOVO TICKET DE 15 MIN DESBLOQUEADO!
+                </div>
+                <div className="text-xs font-medium">
+                  3 blocos cumpridos = +15 minutos de lazer liberados!
+                </div>
+              </div>
+            </div>
+            <div className="flex items-center space-x-1.5 ml-2">
+              <button
+                onClick={() => {
+                  setTicketCelebration(null);
+                  setLeisureModalTab('tickets');
+                  setIsLeisureModalOpen(true);
+                }}
+                className="px-3 py-1.5 bg-black text-white rounded-xl text-xs font-bold hover:bg-zinc-850 transition whitespace-nowrap"
+              >
+                Usar Agora
+              </button>
+              <button
+                onClick={() => setTicketCelebration(null)}
+                className="p-1 hover:bg-black/10 rounded-lg text-black transition"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Bottom Mobile-First Navigation Bar */}

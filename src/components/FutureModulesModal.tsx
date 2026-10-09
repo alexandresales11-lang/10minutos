@@ -61,12 +61,12 @@ export const FutureModulesModal: React.FC<FutureModulesModalProps> = ({
             onClick={() => setActiveTab('blocking')}
             className={`py-2 px-3 rounded-xl text-xs font-bold font-mono-numeric flex items-center justify-center space-x-2 transition ${
               activeTab === 'blocking'
-                ? 'bg-zinc-800 text-blue-400 border border-zinc-700'
+                ? 'bg-zinc-800 text-amber-400 border border-zinc-700'
                 : 'text-zinc-400 hover:text-zinc-200'
             }`}
           >
             <Lock className="w-4 h-4" />
-            <span>SISTEMA DE DESBLOQUEIO</span>
+            <span>TICKETS & BLOQUEIO</span>
           </button>
         </div>
 
@@ -145,15 +145,15 @@ export const FutureModulesModal: React.FC<FutureModulesModalProps> = ({
             /* PHONE BLOCKING ARCHITECTURE */
             <div className="space-y-5">
               <div className="bg-blue-950/20 border border-blue-500/30 rounded-2xl p-5">
-                <div className="flex items-center space-x-2 text-blue-400 text-xs font-mono-numeric font-bold uppercase mb-2">
+                <div className="flex items-center space-x-2 text-amber-400 text-xs font-mono-numeric font-bold uppercase mb-2">
                   <Smartphone className="w-4 h-4" />
-                  <span>SISTEMA DE RECOMPENSA E FOCO RADICAL</span>
+                  <span>SISTEMA DE TICKETS E RECOMPENSA (JÁ ATIVO!)</span>
                 </div>
                 <h3 className="text-xl font-black text-white">
-                  3 Blocos de 10 Min = 5 Min de Liberação
+                  3 Blocos de 10 Min = 15 Min de Liberação
                 </h3>
                 <p className="text-xs text-zinc-300 mt-2 leading-relaxed">
-                  A distração não é proibida; ela é comprada com esforço real. Ao acordar, aplicativos de rede social permanecem travados até que a rotina matinal seja cumprida.
+                  A distração não é proibida; ela é conquistada com esforço real. O sistema de Tickets já está ativo no seu aplicativo: acumule 3 blocos de foco para receber seu Ticket de 15 minutos com alarme sonoro.
                 </p>
               </div>
 

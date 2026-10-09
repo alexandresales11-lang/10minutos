@@ -1,6 +1,6 @@
 import React from 'react';
 import { Task, ExecutionLog, UserSettings } from '../types';
-import { Play, Flame, Clock, CheckCircle2, ChevronRight, Award, Target, AlertCircle, ArrowUpRight, Sparkles, Cloud } from 'lucide-react';
+import { Play, Flame, Clock, CheckCircle2, ChevronRight, Award, Target, AlertCircle, ArrowUpRight, Sparkles, Cloud, Ticket, Settings as SettingsIcon } from 'lucide-react';
 import { CATEGORY_DETAILS } from '../data/initialTasks';
 
 interface MainDashboardProps {
@@ -12,6 +12,7 @@ interface MainDashboardProps {
   maxStreak: number;
   currentUser?: any;
   onOpenAuthModal?: () => void;
+  onOpenLeisureTickets?: (tab?: 'tickets' | 'settings') => void;
   onStartTask: (task: Task) => void;
   onOpenSessionPlanner: () => void;
   onNavigateToTasks: () => void;
@@ -28,6 +29,7 @@ export const MainDashboard: React.FC<MainDashboardProps> = ({
   maxStreak,
   currentUser,
   onOpenAuthModal,
+  onOpenLeisureTickets,
   onStartTask,
   onOpenSessionPlanner,
   onNavigateToTasks,
@@ -67,6 +69,16 @@ export const MainDashboard: React.FC<MainDashboardProps> = ({
 
   // Determine current day number
   const dayNumber = isNewUser ? 1 : Math.max(1, diffDays);
+
+  // Leisure Ticket Calculations
+  const blocksRequired = settings.blocksRequiredForFreeTime || 3;
+  const minutesPerTicket = settings.freeMinutesPerBatch || 15;
+  const totalEarnedTickets = Math.floor(todayCompletedCount / blocksRequired);
+  const usedTickets = settings.usedTicketsCountToday || 0;
+  const availableTickets = Math.max(0, totalEarnedTickets - usedTickets);
+  const cycleProgress = todayCompletedCount % blocksRequired;
+  const blocksUntilNextTicket = blocksRequired - cycleProgress;
+  const isAllDayUnlocked = (settings.unlockedAllDayOnceTargetMet ?? true) && todayCompletedCount >= idealGoal;
 
   const nextTaskCategory = nextTask ? (CATEGORY_DETAILS[nextTask.category] || CATEGORY_DETAILS['OUTROS']) : null;
 
@@ -174,6 +186,91 @@ export const MainDashboard: React.FC<MainDashboardProps> = ({
               )
             </span>
             <span className="text-zinc-500">Meta ideal: {idealGoal} blocos</span>
+          </div>
+        </div>
+      </div>
+
+      {/* LEISURE TICKET CARD (RECOMPENSA DE 15 MINUTOS) */}
+      <div className="bg-gradient-to-r from-amber-950/25 via-[#121215] to-zinc-900 border border-amber-500/30 rounded-3xl p-6 sm:p-7 relative overflow-hidden shadow-xl">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-5 border-b border-zinc-800/80">
+          <div className="flex items-center space-x-3">
+            <div className="w-10 h-10 rounded-2xl bg-amber-500/15 border border-amber-500/35 flex items-center justify-center text-amber-400 shrink-0">
+              <Ticket className="w-5 h-5" />
+            </div>
+            <div>
+              <div className="flex items-center space-x-2">
+                <span className="text-[11px] font-mono-numeric uppercase tracking-wider text-amber-400 font-extrabold">
+                  SISTEMA DE TICKETS & DISCIPLINA
+                </span>
+                <span className="text-[10px] bg-zinc-800 text-zinc-300 px-2 py-0.5 rounded-full font-mono-numeric">
+                  {blocksRequired} blocos = +{minutesPerTicket} min
+                </span>
+              </div>
+              <h3 className="text-xl sm:text-2xl font-black text-white mt-0.5">
+                {isAllDayUnlocked ? 'Lazer 100% Liberado Hoje!' : `${availableTickets} ${availableTickets === 1 ? 'Ticket Disponível' : 'Tickets Disponíveis'} (${availableTickets * minutesPerTicket} min)`}
+              </h3>
+            </div>
+          </div>
+
+          <div className="flex items-center space-x-2">
+            {onOpenLeisureTickets && (
+              <>
+                <button
+                  onClick={() => onOpenLeisureTickets('settings')}
+                  className="p-2.5 rounded-xl bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-zinc-400 hover:text-white transition"
+                  title="Configurar regras de tempo e aplicativos bloqueados"
+                >
+                  <SettingsIcon className="w-4 h-4" />
+                </button>
+
+                <button
+                  onClick={() => onOpenLeisureTickets('tickets')}
+                  className={`py-2.5 px-5 rounded-xl font-black text-xs flex items-center space-x-2 transition shadow-md active:scale-95 ${
+                    availableTickets > 0 || isAllDayUnlocked
+                      ? 'bg-amber-500 hover:bg-amber-400 text-black shadow-amber-500/20'
+                      : 'bg-zinc-800 text-zinc-400 hover:text-white border border-zinc-700/60'
+                  }`}
+                >
+                  <Play className="w-3.5 h-3.5 fill-current" />
+                  <span>{availableTickets > 0 || isAllDayUnlocked ? 'USAR TICKET' : 'VER TICKETS'}</span>
+                </button>
+              </>
+            )}
+          </div>
+        </div>
+
+        {/* Progress cubes for next ticket */}
+        <div className="pt-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs font-mono-numeric">
+          <div className="flex items-center space-x-2 text-zinc-400">
+            <span>Próximo ticket:</span>
+            <div className="flex items-center space-x-1.5">
+              {Array.from({ length: blocksRequired }).map((_, idx) => (
+                <div
+                  key={idx}
+                  className={`w-6 h-6 rounded-lg flex items-center justify-center font-bold text-[10px] transition-all border ${
+                    idx < cycleProgress
+                      ? 'bg-amber-500/20 border-amber-500/60 text-amber-300'
+                      : 'bg-zinc-900 border-zinc-800 text-zinc-600'
+                  }`}
+                >
+                  {idx < cycleProgress ? '✓' : idx + 1}
+                </div>
+              ))}
+            </div>
+            <span className="text-zinc-500 text-[11px] pl-1">
+              {isAllDayUnlocked 
+                ? '(Meta do dia concluída)' 
+                : cycleProgress === 0 && todayCompletedCount > 0
+                ? 'Ticket acabou de ser liberado!' 
+                : `(faltam ${blocksUntilNextTicket} blocos)`}
+            </span>
+          </div>
+
+          <div className="text-[11px] text-zinc-400 flex items-center space-x-1.5">
+            <span className="text-amber-400/90 font-bold">Válido para:</span>
+            <span className="text-zinc-300 truncate max-w-[200px] sm:max-w-none">
+              {(settings.rewardApps || ['Instagram', 'TikTok', 'WhatsApp', 'YouTube']).slice(0, 4).join(', ')}...
+            </span>
           </div>
         </div>
       </div>

@@ -375,8 +375,11 @@ export const DEFAULT_USER_SETTINGS: UserSettings = {
   vibrationEnabled: true,
   antiDistractionStrictMode: false,
   blocksRequiredForFreeTime: 3,
-  freeMinutesPerBatch: 5,
+  freeMinutesPerBatch: 15,
   accumulatedFreeMinutes: 0,
+  rewardApps: ['Instagram', 'TikTok', 'WhatsApp', 'YouTube', 'Jogos'],
+  usedTicketsCountToday: 0,
+  unlockedAllDayOnceTargetMet: true,
   googleDriveConfig: {
     enabled: true,
     connected: false,
