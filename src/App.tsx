@@ -51,6 +51,7 @@ export default function App() {
   // Firebase Auth & Cloud Sync
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState<boolean>(false);
+  const [isSavingToCloud, setIsSavingToCloud] = useState<boolean>(false);
 
   // Leisure Ticket Modal & Celebration State
   const [isLeisureModalOpen, setIsLeisureModalOpen] = useState<boolean>(false);
@@ -117,10 +118,18 @@ export default function App() {
         setLogs([]);
         setEvidenceList([]);
 
-        // Seed initial 25 tasks for this new user if their cloud profile has none
-        await FirebaseService.seedInitialTasks(user.uid, INITIAL_TASKS);
+        // Get local tasks & settings if any were configured before login
+        const localTasks = await StorageService.getTasks();
+        const localSettings = await StorageService.getSettings();
 
-        // Realtime sync from cloud specifically for this user
+        // 1. SAFE SEED: Seed initial tasks only if cloud collection is 100% empty (Rule 5)
+        const initialToSeed = localTasks && localTasks.length > 0 ? localTasks : INITIAL_TASKS;
+        await FirebaseService.seedInitialTasks(user.uid, initialToSeed);
+
+        // 2. SAFE SEED: Seed settings only if cloud has no settings (Rule 5)
+        await FirebaseService.seedInitialSettings(user.uid, localSettings || DEFAULT_USER_SETTINGS);
+
+        // 3. Realtime sync from cloud specifically for this user (Rule 4)
         const unsubTasks = FirebaseService.subscribeUserTasks(user.uid, (cloudTasks) => {
           if (cloudTasks && cloudTasks.length > 0) {
             setTasks(cloudTasks);
@@ -140,7 +149,14 @@ export default function App() {
           }
         });
 
-        unsubs = [unsubTasks, unsubLogs, unsubEvidence];
+        const unsubSettings = FirebaseService.subscribeUserSettings(user.uid, (cloudSettings) => {
+          if (cloudSettings) {
+            setSettings(cloudSettings);
+            StorageService.saveSettings(cloudSettings);
+          }
+        });
+
+        unsubs = [unsubTasks, unsubLogs, unsubEvidence, unsubSettings];
       } else {
         // When logged out, reload local database
         loadData();
@@ -154,7 +170,7 @@ export default function App() {
   }, []);
 
   const handleResetToZero = async () => {
-    if (confirm('Deseja zerar todos os registros de execução? As 25 tarefas serão preservadas, mas todo o histórico, blocos e evidências começarão do zero absoluto.')) {
+    if (confirm('Deseja zerar todos os registros de execução? As tarefas e configurações serão preservadas, mas todo o histórico, blocos e evidências começarão do zero absoluto.')) {
       await StorageService.resetAllLogsAndEvidence();
       if (currentUser) {
         await FirebaseService.resetUserData(currentUser.uid);
@@ -166,10 +182,6 @@ export default function App() {
       alert('Aplicativo 100% zerado e pronto para o primeiro bloco de 10 minutos!');
     }
   };
-
-  useEffect(() => {
-    loadData();
-  }, []);
 
   const todayStr = new Date().toISOString().split('T')[0];
   const todayLogs = logs.filter((l) => l.date === todayStr);
@@ -269,12 +281,20 @@ export default function App() {
       globalSequenceNumber: logs.length + 1,
     };
 
-    await StorageService.addLog(newLog);
-    if (currentUser) {
-      FirebaseService.addLog(currentUser.uid, newLog).catch(console.error);
-    }
     const updatedLogs = [newLog, ...logs];
     setLogs(updatedLogs);
+
+    await StorageService.addLog(newLog);
+    if (currentUser) {
+      try {
+        setIsSavingToCloud(true);
+        await FirebaseService.addLog(currentUser.uid, newLog);
+      } catch (err) {
+        console.warn('Offline or sync pending for log:', err);
+      } finally {
+        setIsSavingToCloud(false);
+      }
+    }
 
     const finishedTask = activeTask;
     setActiveTask(null);
@@ -305,8 +325,7 @@ export default function App() {
         ...settings,
         accumulatedFreeMinutes: updatedAccumulated,
       };
-      await StorageService.saveSettings(updatedSettings);
-      setSettings(updatedSettings);
+      await handleSaveSettings(updatedSettings);
 
       const totalEarned = Math.floor(newTodayLogsCount / blocksReq);
       const usedToday = updatedSettings.usedTicketsCountToday || 0;
@@ -324,38 +343,71 @@ export default function App() {
       createdAt: new Date().toISOString(),
     };
 
-    await StorageService.saveEvidence(newEvidence);
-    if (currentUser) {
-      FirebaseService.saveEvidence(currentUser.uid, newEvidence).catch(console.error);
-    }
     setEvidenceList([newEvidence, ...evidenceList]);
     setEvidenceTarget(null);
+
+    await StorageService.saveEvidence(newEvidence);
+    if (currentUser) {
+      try {
+        setIsSavingToCloud(true);
+        await FirebaseService.saveEvidence(currentUser.uid, newEvidence);
+      } catch (err) {
+        console.warn('Offline or sync pending for evidence:', err);
+      } finally {
+        setIsSavingToCloud(false);
+      }
+    }
   };
 
   const handleSaveTask = async (updatedTask: Task) => {
-    await StorageService.saveTask(updatedTask);
-    if (currentUser) {
-      FirebaseService.saveTask(currentUser.uid, updatedTask).catch(console.error);
-    }
     const exists = tasks.some((t) => t.id === updatedTask.id);
     if (exists) {
       setTasks(tasks.map((t) => (t.id === updatedTask.id ? updatedTask : t)));
     } else {
       setTasks([...tasks, updatedTask]);
     }
+
+    await StorageService.saveTask(updatedTask);
+    if (currentUser) {
+      try {
+        setIsSavingToCloud(true);
+        await FirebaseService.saveTask(currentUser.uid, updatedTask);
+      } catch (err) {
+        console.warn('Offline or sync pending for task:', err);
+      } finally {
+        setIsSavingToCloud(false);
+      }
+    }
   };
 
   const handleDeleteTask = async (taskId: string) => {
+    setTasks(tasks.filter((t) => t.id !== taskId));
     await StorageService.deleteTask(taskId);
     if (currentUser) {
-      FirebaseService.deleteTask(currentUser.uid, taskId).catch(console.error);
+      try {
+        setIsSavingToCloud(true);
+        await FirebaseService.deleteTask(currentUser.uid, taskId);
+      } catch (err) {
+        console.warn('Offline or sync pending for delete task:', err);
+      } finally {
+        setIsSavingToCloud(false);
+      }
     }
-    setTasks(tasks.filter((t) => t.id !== taskId));
   };
 
   const handleSaveSettings = async (newSettings: UserSettings) => {
-    await StorageService.saveSettings(newSettings);
     setSettings(newSettings);
+    await StorageService.saveSettings(newSettings);
+    if (currentUser) {
+      try {
+        setIsSavingToCloud(true);
+        await FirebaseService.saveSettings(currentUser.uid, newSettings);
+      } catch (err) {
+        console.warn('Offline or sync pending for settings:', err);
+      } finally {
+        setIsSavingToCloud(false);
+      }
+    }
   };
 
   // Calculate day number since start
@@ -413,14 +465,20 @@ export default function App() {
             onClick={() => setIsAuthModalOpen(true)}
             className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold font-mono-numeric transition border ${
               currentUser
-                ? 'bg-emerald-950/40 text-emerald-300 border-emerald-500/40 hover:bg-emerald-950/60'
+                ? isSavingToCloud
+                  ? 'bg-amber-950/40 text-amber-300 border-amber-500/40'
+                  : 'bg-emerald-950/40 text-emerald-300 border-emerald-500/40 hover:bg-emerald-950/60'
                 : 'bg-zinc-900 text-zinc-300 border-zinc-800 hover:text-white'
             }`}
             title="Sincronização em Nuvem (Celular & Computador)"
           >
-            <Cloud className={`w-3.5 h-3.5 ${currentUser ? 'text-emerald-400' : 'text-zinc-400'}`} />
+            <Cloud className={`w-3.5 h-3.5 ${currentUser ? (isSavingToCloud ? 'text-amber-400 animate-pulse' : 'text-emerald-400') : 'text-zinc-400'}`} />
             <span className="hidden sm:inline">
-              {currentUser ? (currentUser.displayName?.split(' ')[0] || 'Nuvem Conectada') : 'Sincronizar Nuvem'}
+              {currentUser 
+                ? isSavingToCloud 
+                  ? 'Salvando...' 
+                  : (currentUser.displayName?.split(' ')[0] || 'Nuvem Conectada') 
+                : 'Sincronizar Nuvem'}
             </span>
           </button>
 
